@@ -16,31 +16,31 @@
 using namespace std;
 
 // Функция для удаления данных из таблиц
-inline void removeData(MyVector<string>& tableNames, MyVector<string>& conditionList, const string& schemaName, const string& path, const MyHashMap<string, MyVector<string>*>& jsonStructure) {
+inline void removeData(MyVector<string>& namesOfTable, MyVector<string>& listOfCondition, const string& nameOfSchema, const string& path, const MyHashMap<string, MyVector<string>*>& jsonStructure) {
     // Создаем дерево условий для фильтрации строк
-    Node* nodeWere = getConditionTree(conditionList);
+    Node* nodeWere = getConditionTree(listOfCondition);
 
     // Проходим по всем таблицам, указанным в запросе
-    for (int i = 0; i < tableNames.length; i++) {
+    for (int i = 0; i < namesOfTable.length; i++) {
         int fileIndex = 1;
 
         // Блокируем таблицу для исключения конфликтов при записи
         try {
-            CheckTableLock(path + "/" + schemaName + "/" + tableNames.data[i], tableNames.data[i] + "_lock.txt", 1);
+            CheckTableLock(path + "/" + nameOfSchema + "/" + namesOfTable.data[i], namesOfTable.data[i] + "_lock.txt", 1);
         } catch (const std::exception& err) {
             cerr << err.what() << endl;
             return;
         }
 
         // Проходим по всем файлам таблицы
-        while (filesystem::exists(path + "/" + schemaName + "/" + tableNames.data[i] + "/" + to_string(fileIndex) + ".csv")) {
-            ifstream file(path + "/" + schemaName + "/" + tableNames.data[i] + "/" + to_string(fileIndex) + ".csv");
+        while (filesystem::exists(path + "/" + nameOfSchema + "/" + namesOfTable.data[i] + "/" + to_string(fileIndex) + ".csv")) {
+            ifstream file(path + "/" + nameOfSchema + "/" + namesOfTable.data[i] + "/" + to_string(fileIndex) + ".csv");
             if (!file.is_open()) {
-                throw runtime_error("Ошибка открытия: " + (path + "/" + schemaName + "/" + tableNames.data[i] + "/" + to_string(fileIndex) + ".csv"));
+                throw runtime_error("Ошибка открытия: " + (path + "/" + nameOfSchema + "/" + namesOfTable.data[i] + "/" + to_string(fileIndex) + ".csv"));
             }
 
             // Создаем временный файл для записи отфильтрованных данных
-            ofstream tempFile(path + "/" + schemaName + "/" + tableNames.data[i] + "/" + to_string(fileIndex) + "_temp.csv");
+            ofstream tempFile(path + "/" + nameOfSchema + "/" + namesOfTable.data[i] + "/" + to_string(fileIndex) + "_temp.csv");
 
             string line;
             // Копируем заголовок таблицы во временный файл
@@ -52,14 +52,14 @@ inline void removeData(MyVector<string>& tableNames, MyVector<string>& condition
                 MyVector<string>* row = splitRow(line, ',');
                 try {
                     // Проверяем, соответствует ли строка условиям
-                    if (!isValidRow(nodeWere, *row, jsonStructure, tableNames.data[i])) {
+                    if (!isValidRow(nodeWere, *row, jsonStructure, namesOfTable.data[i])) {
                         tempFile << endl << line;
                     }
                 } catch (const exception& err) {
                     cerr << err.what() << endl;
                     tempFile.close();
                     file.close();
-                    std::remove((path + "/" + schemaName + "/" + tableNames.data[i] + "/" + to_string(fileIndex) + "_temp.csv").c_str());
+                    std::remove((path + "/" + nameOfSchema + "/" + namesOfTable.data[i] + "/" + to_string(fileIndex) + "_temp.csv").c_str());
                     return;
                 }
             }
@@ -67,13 +67,14 @@ inline void removeData(MyVector<string>& tableNames, MyVector<string>& condition
             // Закрываем файлы
             tempFile.close();
             file.close();
+            
 
             // Удаляем исходный файл и переименовываем временный файл
-            if (std::remove((path + "/" + schemaName + "/" + tableNames.data[i] + "/" + to_string(fileIndex) + ".csv").c_str()) != 0) {
+            if (std::remove((path + "/" + nameOfSchema + "/" + namesOfTable.data[i] + "/" + to_string(fileIndex) + ".csv").c_str()) != 0) {
                 std::cerr << "Ошибка удаления файла" << std::endl;
                 return;
             }
-            if (std::rename((path + "/" + schemaName + "/" + tableNames.data[i] + "/" + to_string(fileIndex) + "_temp.csv").c_str(), (path + "/" + schemaName + "/" + tableNames.data[i] + "/" + to_string(fileIndex) + ".csv").c_str()) != 0) {
+            if (std::rename((path + "/" + nameOfSchema + "/" + namesOfTable.data[i] + "/" + to_string(fileIndex) + "_temp.csv").c_str(), (path + "/" + nameOfSchema + "/" + namesOfTable.data[i] + "/" + to_string(fileIndex) + ".csv").c_str()) != 0) {
                 std::cerr << "Ошибка присвоения названия файлу" << std::endl;
                 return;
             }
@@ -82,15 +83,15 @@ inline void removeData(MyVector<string>& tableNames, MyVector<string>& condition
         }
 
         // Разблокируем таблицу
-        CheckTableLock(path + "/" + schemaName + "/" + tableNames.data[i], tableNames.data[i] + "_lock.txt", 0);
+        CheckTableLock(path + "/" + nameOfSchema + "/" + namesOfTable.data[i], namesOfTable.data[i] + "_lock.txt", 0);
     }
 }
 
 // Функция для парсинга DELETE запроса
-void parseDelete(const MyVector<string>& words, const string& filePath, const string& schemaName, const MyHashMap<string, MyVector<string>*>& jsonStructure) {
+void parseDelete(const MyVector<string>& words, const string& filePath, const string& nameOfSchema, const MyHashMap<string, MyVector<string>*>& jsonStructure) {
     // Создаем векторы для хранения имен таблиц и условий
-    MyVector<string>* tableNames = CreateVector<string>(5, 50);
-    MyVector<string>* conditionList = CreateVector<string>(5, 50);
+    MyVector<string>* namesOfTable = CreateVector<string>(5, 50);
+    MyVector<string>* listOfCondition = CreateVector<string>(5, 50);
     int countTabNames = 0;
     int countWereData = 0;
     bool afterWhere = false;
@@ -107,7 +108,7 @@ void parseDelete(const MyVector<string>& words, const string& filePath, const st
             afterWhere = true;
         } else if (afterWhere) {
             // Добавляем условия в список
-            AddVector<string>(*conditionList, words.data[i]);
+            AddVector<string>(*listOfCondition, words.data[i]);
             countWereData++;
         } else {
             // Добавляем имена таблиц в список
@@ -118,7 +119,7 @@ void parseDelete(const MyVector<string>& words, const string& filePath, const st
                 cerr << err.what() << ": таблица " << words.data[i] << " отсутствует." << endl;
                 return;
             }
-            AddVector<string>(*tableNames, words.data[i]);
+            AddVector<string>(*namesOfTable, words.data[i]);
         }
     }
 
@@ -129,7 +130,7 @@ void parseDelete(const MyVector<string>& words, const string& filePath, const st
 
     // Вызываем функцию для удаления данных
     try {
-        removeData(*tableNames, *conditionList, schemaName, filePath, jsonStructure);
+        removeData(*namesOfTable, *listOfCondition, nameOfSchema, filePath, jsonStructure);
     } catch (const exception& err) {
         cerr << err.what()<< endl;
         return;
