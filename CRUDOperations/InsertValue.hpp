@@ -115,7 +115,7 @@ void parseInsert(const MyVector<string>& slovs, const string& filePath, const st
                     try {
                         CleanText(slovs.data[i]);
                     } catch (const exception& err) {
-                        cerr << " 23" << err.what() << slovs.data[i] << endl;
+                        cerr << err.what() << " " << slovs.data[i] << endl;
                         return;
                     }
 

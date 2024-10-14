@@ -1,9 +1,9 @@
 {
-  "name": "Схема1",
+  "name": "BigStore",
   "tuples_limit":  30,
   "structure": {
-    "table1": ["Segment", "Country", "Product", "Discount Band", "Units", "Month", "Month Name", "Year"],
-    "table2": ["Segment", "Country", "Product", "Discount Band", "Units", "Month", "Month Name", "Year"],
-    "table3": ["Segment", "Country"]
+    "beer": ["Name", "Type", "Brewery", "Country"],
+    "cars": ["Make", "Model", "Year", "Price"],
+    "test": ["col1", "col2"]
   }
 }
