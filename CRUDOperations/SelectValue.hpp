@@ -205,7 +205,7 @@ void parseSelect(const MyVector<string>& words, const string& pathFile, const st
         // Определение разделителей в запросе
         if (words.data[i] == "FROM") {
             afterFrom = true;
-        } else if (words.data[i] == "whereValue") {
+        } else if (words.data[i] == "WHERE") {
             afterwhereValue = true;
         } else if (afterwhereValue) {
             // Добавление условий whereValue в список
